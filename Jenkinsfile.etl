@@ -1,0 +1,26 @@
+pipeline {
+  agent any
+  options { timestamps(); disableConcurrentBuilds() }
+  triggers { cron('H * * * *') }
+
+  stages {
+    stage('Checkout') { steps { checkout scm } }
+
+    stage('Prepare env') {
+      steps {
+        withCredentials([file(credentialsId: 'jakartapulse-env', variable: 'ENV_FILE')]) {
+          sh 'cp "$ENV_FILE" .env'
+        }
+      }
+    }
+
+    stage('Run ETL') {
+      steps { sh 'docker compose --profile etl run --rm --no-deps etl-runner' }
+    }
+  }
+
+  post {
+    always  { sh 'rm -f .env' }
+    failure { echo 'ETL gagal, cek log' }
+  }
+}
